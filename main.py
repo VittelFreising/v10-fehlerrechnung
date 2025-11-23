@@ -3,6 +3,7 @@ import pandas as pd
 from src.data_parser import load_and_process_data
 from src.error_analysis import calculate_mass_from_config, calculate_physics
 from src.plot_generator import plot_mu_vs_force, plot_mu_vs_voltage, plot_mu_vs_area
+from src.ppt_exporter import generate_ppt_report
 
 def main():
     print("Step 1: Parsing Data...")
@@ -30,25 +31,14 @@ def main():
     
     print("Step 3: Generating Plots...")
     os.makedirs('plots', exist_ok=True)
-    
+    # 生成图表
     plot_mu_vs_force(df, 'plots/mu_vs_normal_force.png')
     plot_mu_vs_voltage(df, 'plots/mu_vs_voltage.png')
     plot_mu_vs_area(df, 'plots/mu_vs_area.png')
-    
+    # 生成PPT报告
+    print("Step 4: Generating PPT Report...")
     print("\n" + "="*50)
-    print("ERROR CALCULATION EXAMPLE (Weiss, B+1+2+3+4, 5V)")
-    print("="*50)
-    example = df[
-        (df['Material'] == 'Weiss') & 
-        (df['Block_Config'] == 'B+1+2+3+4') & 
-        (df['Experiment'] == 'Weight_Var')
-    ].iloc[0]
-    
-    print(f"Force Range: {example['Range']} N")
-    print(f"Avg Friction Force (Fr): {example['Messwert_Avg']:.4f} +/- {example['Messwert_Delta']:.4f} N")
-    print(f"Mass: {example['Mass_g_Avg']:.2f} g")
-    print(f"Normal Force (Fn): {example['Fn_avg']:.4f} N")
-    print(f"Mu: {example['mu_avg']:.4f} +/- {example['mu_delta']:.4f}")
+    generate_ppt_report(df)
     
     print("\nDone! Check the 'plots' folder.")
 
