@@ -108,7 +108,7 @@ def plot_mu_vs_voltage(df, output_path):
                ].copy()
     
     # 提取电压数字
-    subset['Voltage_Num'] = subset['Voltage_V'].str.extract('(\d+)').astype(float)
+    subset['Voltage_Num'] = subset['Voltage_V'].str.extract(r'(\d+)').astype(float)
     
     # 聚合
     agg_df = subset.groupby(['Material', 'Voltage_Num']).agg(

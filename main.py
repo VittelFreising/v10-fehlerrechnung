@@ -22,8 +22,11 @@ def main():
     
     # 保存中间数据
     os.makedirs('data', exist_ok=True)
-    df.to_csv('data/processed_data.csv', index=False)
-    print(f"Data saved to data/processed_data.csv ({len(df)} rows)")
+    try:
+        df.to_csv('data/processed_data.csv', index=False)
+        print(f"Data saved to data/processed_data.csv ({len(df)} rows)")
+    except PermissionError:
+        print(f"Warning: Could not save processed_data.csv (file in use), but continuing with plots...")
     
     print("Step 3: Generating Plots...")
     os.makedirs('plots', exist_ok=True)
