@@ -3,110 +3,135 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
-def plot_friction_results(df_analyzed, plot_type, x_axis_label, y_axis_label, save_path):
-    """
-    Generates bar plots with error bars for friction coefficient.
-    
-    Args:
-        df_analyzed (pd.DataFrame): DataFrame containing analyzed friction data (mu_avg, mu_delta).
-        plot_type (str): Type of plot (e.g., 'normal_force', 'normal_area', 'voltage').
-        x_axis_label (str): Label for the x-axis.
-        y_axis_label (str): Label for the y-axis (friction coefficient).
-        save_path (str): Path to save the plot image.
-    """
+def plot_mu_vs_force(df, output_path):
+    """图1: 摩擦系数 vs 法向力 (重量变化实验)"""
     plt.figure(figsize=(10, 6))
     
-    # Filter for relevant data (Tribologie measurements)
-    df_plot = df_analyzed[df_analyzed['Versuch'] == 'Tribologie'].copy()
+    # 过滤出重量变化实验的数据
+    subset = df[df['Experiment'] == 'Weight_Var'].copy()
     
-    # Aggregate data to have one mu_avg and mu_delta per Block_Config and Material
-    # This assumes that for a given (Block_Config, Material), we have a single mu and delta
-    # If multiple measurements (M1, M2, M3) lead to slightly different mu,
-    # we might need to average them or represent them separately.
-    # For now, let's group and take the mean of mu_avg and max of mu_delta for simplicity in plotting.
-    # This is a simplification; ideally, the error propagation would already yield a single mu_avg/delta for a set of measurements.
-    
-    if plot_type == 'normal_force':
-        # For 'normal_force', x-axis would be related to Block_Config/Fn_avg.
-        # Let's use Block_Config as categorical x-axis for now.
-        x_col = 'Block_Config'
-        # Sort Block_Config if they represent increasing normal force
-        block_order = ['B', 'B+1', 'B+1+2', 'B+1+2+3', 'B+1+2+3+4']
-        df_plot[x_col] = pd.Categorical(df_plot[x_col], categories=block_order, ordered=True)
-        df_plot = df_plot.sort_values(x_col)
-        
-    elif plot_type == 'normal_area':
-        # This plot type would require specific 'normal area A' values.
-        # For now, we don't have this in a clear column, so let's stick to Block_Config.
-        # If 'normal area A' is directly calculable or available, it should be added to the DataFrame.
-        x_col = 'Block_Config' # Placeholder
-    elif plot_type == 'voltage':
-        # This would use the 'Grosse_Flaeche_Spannung' data.
-        # For friction coefficient (mu) vs voltage, this implies mu is calculated for these specific voltage measurements.
-        # Currently, mu is only explicitly calculated for Tribologie data.
-        # If mu is also relevant for voltage data, it needs to be calculated in error_analysis.py.
-        
-        # For now, let's create a placeholder plot using existing mu data, or you might need to adjust the scope.
-        # For PPT requirement "friction coefficient μ versus voltage U", this means mu should be derived from
-        # the voltage experiment (Messwert_Avg / Fn_avg for that experiment).
-        # We need to calculate mu for df_large_surface_voltage data.
-        
-        # Let's focus on Tribologie data for the initial plots.
-        print(f"Warning: Plot type '{plot_type}' for friction coefficient vs voltage requires specific mu calculation for voltage data. Generating placeholder plot with existing friction data.")
-        x_col = 'Block_Config'
-    else:
-        x_col = 'Block_Config' # Default
+    # 聚合 (取均值和最大误差)
+    agg_df = subset.groupby(['Material', 'Block_Config']).agg(
+        mu_avg=('mu_avg', 'mean'),
+        mu_delta=('mu_delta', 'max')
+    ).reset_index()
 
-    sns.barplot(x=x_col, y='mu_avg', hue='Material', data=df_plot, yerr=df_plot['mu_delta'], capsize=0.1, errorbar=None)
-    
-    # Manually add error bars for better control (yerr in barplot sometimes requires specific data format)
-    # This assumes df_plot has unique rows for each bar (x_col, hue)
-    for i, row in df_plot.iterrows():
-        plt.errorbar(x=row[x_col], y=row['mu_avg'], yerr=row['mu_delta'], color='black', capsize=5)
+    # 排序
+    block_order = ['B', 'B+1', 'B+1+2', 'B+1+2+3', 'B+1+2+3+4']
+    agg_df['Block_Config'] = pd.Categorical(agg_df['Block_Config'], categories=block_order, ordered=True)
+    agg_df = agg_df.sort_values('Block_Config')
 
-    plt.title(f'{y_axis_label} vs {x_axis_label} with Error Bars')
-    plt.xlabel(x_axis_label)
-    plt.ylabel(y_axis_label)
+    # 绘图
+    materials = agg_df['Material'].unique()
+    width = 0.25
+    x = np.arange(len(block_order))
+    
+    for i, mat in enumerate(materials):
+        mat_data = agg_df[agg_df['Material'] == mat]
+        # 对齐数据
+        mat_data = mat_data.set_index('Block_Config').reindex(block_order).reset_index()
+        
+        offset = (i - 1) * width
+        plt.bar(x + offset, mat_data['mu_avg'], width, label=mat, 
+                yerr=mat_data['mu_delta'], capsize=5, alpha=0.8)
+
+    plt.xticks(x, block_order)
+    plt.xlabel('Block Configuration (Mass Increase)')
+    plt.ylabel('Friction Coefficient ($\mu$)')
+    plt.title('Friction Coefficient vs Normal Force (5V, Large Area)')
     plt.legend(title='Material')
-    plt.grid(axis='y', linestyle='--')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig(save_path)
+    plt.savefig(output_path, dpi=300)
     plt.close()
 
-def plot_mu_vs_voltage(df_voltage_analyzed, save_path):
-    """
-    Generates a plot for friction coefficient (μ) versus voltage (U).
-    This requires 'Voltage_V' to be a numerical column and 'mu_avg', 'mu_delta' to be calculated
-    for the large surface voltage experiments.
-    """
+def plot_mu_vs_voltage(df, output_path):
+    """图2: 摩擦系数 vs 电压"""
     plt.figure(figsize=(10, 6))
-
-    df_plot = df_voltage_analyzed[df_voltage_analyzed['Versuch'] == 'Grosse_Flaeche_Spannung'].copy()
     
-    if df_plot.empty:
-        print(f"No data available for 'Grosse_Flaeche_Spannung' to plot mu vs voltage. Skipping plot: {save_path}")
-        return
-
-    # Convert Voltage_V to numerical for plotting
-    df_plot['Voltage_Num'] = df_plot['Voltage_V'].str.extract('(\d+)').astype(float)
+    # 包含 5V (Weight_Var 中 Block B 的数据) 和 7-11V (Voltage_Var)
+    # 过滤条件: Block B, 大面积
+    subset = df[(df['Block_Config'] == 'B') & 
+                ((df['Experiment'] == 'Voltage_Var') | 
+                 ((df['Experiment'] == 'Weight_Var') & (df['Voltage_V'] == '5V')))
+               ].copy()
     
-    # Sort by voltage for better visualization
-    df_plot = df_plot.sort_values(['Material', 'Voltage_Num'])
-
-    # Plot for each material
-    sns.lineplot(x='Voltage_Num', y='mu_avg', hue='Material', marker='o', data=df_plot)
+    # 提取电压数字
+    subset['Voltage_Num'] = subset['Voltage_V'].str.extract('(\d+)').astype(float)
     
-    # Add error bars
-    for material in df_plot['Material'].unique():
-        material_data = df_plot[df_plot['Material'] == material]
-        plt.errorbar(x=material_data['Voltage_Num'], y=material_data['mu_avg'], 
-                     yerr=material_data['mu_delta'], fmt='none', capsize=5, color='black')
+    # 聚合
+    agg_df = subset.groupby(['Material', 'Voltage_Num']).agg(
+        mu_avg=('mu_avg', 'mean'),
+        mu_delta=('mu_delta', 'max')
+    ).reset_index().sort_values('Voltage_Num')
 
-    plt.title('Friction Coefficient (μ) vs Voltage (U) with Error Bars')
-    plt.xlabel('Voltage (U)')
-    plt.ylabel('Friction Coefficient (μ)')
+    # 绘图
+    for mat in agg_df['Material'].unique():
+        data = agg_df[agg_df['Material'] == mat]
+        plt.errorbar(data['Voltage_Num'], data['mu_avg'], yerr=data['mu_delta'], 
+                     label=mat, fmt='-o', capsize=5)
+
+    plt.xlabel('Voltage (V)')
+    plt.ylabel('Friction Coefficient ($\mu$)')
+    plt.title('Friction Coefficient vs Voltage (Large Area, Block B)')
     plt.legend(title='Material')
-    plt.grid(axis='both', linestyle='--')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.xticks([5, 7, 9, 11])
     plt.tight_layout()
-    plt.savefig(save_path)
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+def plot_mu_vs_area(df, output_path):
+    """图3: 摩擦系数 vs 面积 (对比 小面积 vs 大面积)"""
+    plt.figure(figsize=(8, 6))
+    
+    # 条件: 5V, Block B
+    subset = df[(df['Voltage_V'] == '5V') & (df['Block_Config'] == 'B')].copy()
+    
+    # 标记面积类型
+    # 大约 > 30 为大面积，< 30 为小面积
+    subset['Area_Type'] = subset['Area_cm2'].apply(lambda x: 'Large' if x > 30 else 'Small')
+    
+    # 聚合
+    agg_df = subset.groupby(['Material', 'Area_Type', 'Area_cm2']).agg(
+        mu_avg=('mu_avg', 'mean'),
+        mu_delta=('mu_delta', 'max')
+    ).reset_index()
+
+    # 绘图 (用简单的 Bar Plot 对比)
+    sns.barplot(data=agg_df, x='Material', y='mu_avg', hue='Area_Type', 
+                capsize=0.1, alpha=0.8, edgecolor='black')
+    
+    # 由于 seaborn barplot 的误差棒比较难自定义，我们手动添加误差棒
+    # 这里为了代码简洁，直接使用 errorbar 参数在上面的 sns.barplot 中通常不起作用(如果数据是聚合过的)
+    # 所以我们使用 matplotlib 的 errorbar 叠加
+    
+    # 获取柱状图的坐标信息有点复杂，我们简化：直接画 Point Plot 或者手动 Bar
+    plt.clf() # 清除
+    
+    materials = agg_df['Material'].unique()
+    x = np.arange(len(materials))
+    width = 0.35
+    
+    for i, area_type in enumerate(['Small', 'Large']):
+        type_data = agg_df[agg_df['Area_Type'] == area_type]
+        # 确保对齐
+        type_data = type_data.set_index('Material').reindex(materials).reset_index()
+        
+        offset = (i - 0.5) * width
+        # Label 包含具体面积信息 (取第一个非空值作为 label 示例)
+        area_val = type_data['Area_cm2'].mean() 
+        label = f"{area_type} Area (~{area_val:.0f} $cm^2$)"
+        
+        plt.bar(x + offset, type_data['mu_avg'], width, label=label,
+                yerr=type_data['mu_delta'], capsize=5, alpha=0.8)
+
+    plt.xticks(x, materials)
+    plt.xlabel('Material')
+    plt.ylabel('Friction Coefficient ($\mu$)')
+    plt.title('Friction Coefficient vs Contact Area (5V, Block B)')
+    plt.legend()
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
     plt.close()
