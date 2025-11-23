@@ -23,6 +23,11 @@ def get_raw_data():
     """
     录入图片中的所有原始数据。
     包含：Block配置、电压、面积、测量的力范围。
+    
+    Material Mapping:
+    - Stahl: Steel (Stahlblock)
+    - Weiss: Polyethylen (white block)
+    - Schwarz: Polyisopren (black block)
     """
     
     # 定义面积常量 (cm^2)
