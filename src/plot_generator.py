@@ -23,6 +23,7 @@ def plot_mu_vs_force(df, output_path):
     r"""图1: 摩擦系数 vs 重量 (重量变化实验)
     左Y轴: 摩擦系数 μ
     右Y轴: 摩擦力 F
+    横轴: 重量 (kg)
     """
     fig, ax1 = plt.subplots(figsize=(12, 6))
     
@@ -31,41 +32,42 @@ def plot_mu_vs_force(df, output_path):
     
     # 聚合 (取均值和最大误差)
     agg_df = subset.groupby(['Material', 'Block_Config']).agg(
+        mass_g=('Mass_g_Avg', 'mean'),
         mu_avg=('mu_avg', 'mean'),
         mu_delta=('mu_delta', 'max'),
         messwert_avg=('Messwert_Avg', 'mean'),
         messwert_delta=('Messwert_Delta', 'max')
     ).reset_index()
 
-    # 排序并添加重量编号
+    # 排序
     block_order = ['B', 'B+1', 'B+1+2', 'B+1+2+3', 'B+1+2+3+4']
     agg_df['Block_Config'] = pd.Categorical(agg_df['Block_Config'], categories=block_order, ordered=True)
-    agg_df = agg_df.sort_values('Block_Config')
-    # 将Block_Config映射到数字重量 (1, 2, 3, 4, 5)
-    agg_df['Weight'] = agg_df['Block_Config'].cat.codes + 1
+    agg_df = agg_df.sort_values(['Block_Config'])
+    
+    # 将重量从克转换为千克
+    agg_df['Weight_kg'] = agg_df['mass_g'] / 1000.0
 
     # 颜色定义
     colors = {'Stahl': '#1f77b4', 'Weiss': '#ff7f0e', 'Schwarz': '#2ca02c'}
     
     # 绘制μ (左Y轴) - 线条图
     for mat in agg_df['Material'].unique():
-        mat_data = agg_df[agg_df['Material'] == mat]
-        ax1.errorbar(mat_data['Weight'], mat_data['mu_avg'], yerr=mat_data['mu_delta'], 
+        mat_data = agg_df[agg_df['Material'] == mat].sort_values('Weight_kg')
+        ax1.errorbar(mat_data['Weight_kg'], mat_data['mu_avg'], yerr=mat_data['mu_delta'], 
                      label=f"{get_material_label(mat)} (μ)", fmt='-o', capsize=5, 
                      color=colors.get(mat, None), linewidth=2, markersize=7)
 
-    ax1.set_xlabel('Weight (Number of Blocks)', fontsize=11)
+    ax1.set_xlabel('Weight (kg)', fontsize=11)
     ax1.set_ylabel(r'Friction Coefficient ($\mu$)', fontsize=11, color='steelblue')
     ax1.tick_params(axis='y', labelcolor='steelblue')
-    ax1.set_xticks([1, 2, 3, 4, 5])
     ax1.grid(True, linestyle='--', alpha=0.3)
 
     # 创建右Y轴 (摩擦力F)
     ax2 = ax1.twinx()
     
     for mat in agg_df['Material'].unique():
-        mat_data = agg_df[agg_df['Material'] == mat]
-        ax2.errorbar(mat_data['Weight'], mat_data['messwert_avg'], yerr=mat_data['messwert_delta'], 
+        mat_data = agg_df[agg_df['Material'] == mat].sort_values('Weight_kg')
+        ax2.errorbar(mat_data['Weight_kg'], mat_data['messwert_avg'], yerr=mat_data['messwert_delta'], 
                     fmt='--s', color=colors.get(mat, None), linewidth=2, 
                     markersize=6, capsize=3, label=f"{get_material_label(mat)} (F)", alpha=0.6)
 
@@ -163,11 +165,15 @@ def plot_mu_vs_area(df, output_path):
     
     # 聚合
     agg_df = subset.groupby(['Material', 'Area_Type', 'Area_cm2']).agg(
+        mass_g=('Mass_g_Avg', 'mean'),
         mu_avg=('mu_avg', 'mean'),
         mu_delta=('mu_delta', 'max'),
         messwert_avg=('Messwert_Avg', 'mean'),
         messwert_delta=('Messwert_Delta', 'max')
     ).reset_index()
+    
+    # 将重量从克转换为千克
+    agg_df['weight_kg'] = agg_df['mass_g'] / 1000.0
 
     # 颜色定义
     colors = {'Stahl': '#1f77b4', 'Weiss': '#ff7f0e', 'Schwarz': '#2ca02c'}
@@ -175,6 +181,8 @@ def plot_mu_vs_area(df, output_path):
     # 绘制μ的线条图 (左Y轴) - 按面积排序
     for mat in agg_df['Material'].unique():
         mat_data = agg_df[agg_df['Material'] == mat].sort_values('Area_cm2')
+        # 创建包含重量信息的标签
+        labels = [f"{get_material_label(mat)} (μ)\n{w:.2f} kg" for w in mat_data['weight_kg']]
         ax1.errorbar(mat_data['Area_cm2'], mat_data['mu_avg'], yerr=mat_data['mu_delta'],
                      label=f"{get_material_label(mat)} (μ)", fmt='-o', capsize=5,
                      color=colors.get(mat, None), linewidth=2, markersize=7)
