@@ -204,7 +204,7 @@ def plot_mu_vs_area(df, output_path):
     ax2.set_ylabel('Friction Force (F) [N]', fontsize=11, color='darkred')
     ax2.tick_params(axis='y', labelcolor='darkred')
 
-    fig.suptitle('Friction Coefficient vs Contact Area (5V, Block B)', fontsize=12, fontweight='bold')
+    fig.suptitle('Friction Coefficient vs Contact Area (5V)', fontsize=12, fontweight='bold')
     
     # 合并两个图例
     lines1, labels1 = ax1.get_legend_handles_labels()
